@@ -1,0 +1,10 @@
+.git
+node_modules
+.data
+.neon
+dist
+.env
+.env.local
+backend/dist
+frontend/dist
+shared/dist
