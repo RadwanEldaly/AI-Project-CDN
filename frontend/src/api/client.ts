@@ -107,7 +107,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }));
 
   if (!response.ok || !json.success) {
-    const errorMsg = json.error?.message || `Request failed with status ${response.status}`;
+    let errorMsg = json.error?.message || `Request failed with status ${response.status}`;
+    if (json.error?.details && Array.isArray(json.error.details) && json.error.details.length > 0) {
+      const detailedIssues = json.error.details.map((d: any) => d.issue || d.message).filter(Boolean).join('. ');
+      if (detailedIssues) {
+        errorMsg = detailedIssues;
+      }
+    }
     const err = new Error(errorMsg) as Error & { code?: string; details?: any };
     err.code = json.error?.code || 'HTTP_ERROR';
     err.details = json.error?.details;

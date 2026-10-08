@@ -3,29 +3,29 @@ import { z } from 'zod';
 export const CreatePostSchema = z.object({
   title: z
     .string({ required_error: 'Title is required' })
-    .min(5, 'Title must be at least 5 characters')
+    .min(1, 'Title cannot be empty')
     .max(255, 'Title cannot exceed 255 characters')
     .transform((val) => val.trim()),
   content: z
     .string({ required_error: 'Content is required' })
-    .min(10, 'Content must be at least 10 characters')
+    .min(1, 'Content cannot be empty')
     .max(50000, 'Content cannot exceed 50,000 characters'),
   tags: z
-    .array(z.string().min(1).max(32).regex(/^[a-zA-Z0-9_-]+$/, 'Tags must be alphanumeric'))
-    .max(5, 'Maximum of 5 tags allowed')
+    .array(z.string().min(1).max(32))
+    .max(10, 'Maximum of 10 tags allowed')
     .optional()
     .default([]),
   mediaIds: z
     .array(z.string().uuid('Invalid media ID'))
-    .max(4, 'Maximum of 4 media attachments allowed')
+    .max(10, 'Maximum of 10 media attachments allowed')
     .optional()
     .default([]),
 });
 
 export const UpdatePostSchema = z.object({
-  title: z.string().min(5).max(255).optional(),
-  content: z.string().min(10).max(50000).optional(),
-  tags: z.array(z.string().min(1).max(32)).max(5).optional(),
+  title: z.string().min(1).max(255).optional(),
+  content: z.string().min(1).max(50000).optional(),
+  tags: z.array(z.string().min(1).max(32)).max(10).optional(),
 });
 
 export const CreateCommentSchema = z.object({

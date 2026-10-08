@@ -209,16 +209,34 @@ export class MediaService {
       buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
       buffer.subarray(8, 12).toString('ascii') === 'WEBP'
     ) return true;
-    // MP4 / MOV / QuickTime: 'ftyp' at offset 4
-    if (mediaType === 'video' && buffer.length >= 8) {
-      const ftyp = buffer.subarray(4, 8).toString('ascii');
-      if (ftyp === 'ftyp' || ftyp === 'moov') return true;
+    // GIF: GIF87a / GIF89a
+    if (buffer.subarray(0, 3).toString('ascii') === 'GIF') return true;
+    // SVG
+    if (buffer.subarray(0, 100).toString('utf8').toLowerCase().includes('<svg')) return true;
+
+    // Videos: MP4 / MOV / QuickTime / WebM / MKV
+    if (mediaType === 'video') {
+      // Check first 128 bytes for common video box signatures
+      const sample = buffer.subarray(0, Math.min(buffer.length, 128)).toString('binary');
+      if (
+        sample.includes('ftyp') ||
+        sample.includes('moov') ||
+        sample.includes('wide') ||
+        sample.includes('mdat') ||
+        sample.includes('isom') ||
+        sample.includes('mp41') ||
+        sample.includes('mp42') ||
+        sample.includes('qt  ')
+      ) return true;
+
+      // WebM / Matroska / EBML: 1A 45 DF A3
+      if (
+        buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3
+      ) return true;
+
+      // RIFF AVI
+      if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && sample.includes('AVI ')) return true;
     }
-    // WebM / EBML: 1A 45 DF A3
-    if (
-      mediaType === 'video' &&
-      buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3
-    ) return true;
 
     return false;
   }
