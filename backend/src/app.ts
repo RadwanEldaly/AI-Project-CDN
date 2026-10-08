@@ -8,7 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { authenticate } from './security/middleware.js';
-import { getDb } from './db/connection.js';
+import { getDb, initDatabase } from './db/connection.js';
 import { sql } from 'kysely';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { mediaRoutes } from './modules/media/media.routes.js';
@@ -206,4 +206,28 @@ export async function buildApp(): Promise<FastifyInstance> {
   }
 
   return app;
+}
+
+let appInstance: FastifyInstance | null = null;
+let isDbInitialized = false;
+
+async function getOrInitApp(): Promise<FastifyInstance> {
+  if (!isDbInitialized) {
+    try {
+      await initDatabase();
+      isDbInitialized = true;
+    } catch (err) {
+      console.error('Failed to initialize database in serverless handler:', err);
+    }
+  }
+  if (!appInstance) {
+    appInstance = await buildApp();
+    await appInstance.ready();
+  }
+  return appInstance;
+}
+
+export default async function handler(req: any, res: any) {
+  const instance = await getOrInitApp();
+  instance.server.emit('request', req, res);
 }
