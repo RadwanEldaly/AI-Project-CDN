@@ -10,23 +10,6 @@ export const mediaRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
   const storage = new LocalStorageProvider();
   const mediaService = new MediaService(getDb(), storage, mediaQueue);
 
-  // Register binary content parser for direct S3-style PUT uploads
-  server.addContentTypeParser(
-    [
-      'image/png',
-      'image/jpeg',
-      'image/webp',
-      'image/avif',
-      'video/mp4',
-      'video/webm',
-      'video/quicktime',
-      'application/octet-stream',
-    ],
-    { parseAs: 'buffer' },
-    (_req, body, done) => {
-      done(null, body);
-    }
-  );
 
   // Register the background queue worker
   mediaQueue.registerWorker((job) => mediaService.processMediaJob(job));
