@@ -30,6 +30,7 @@ export async function initDatabase(config: DatabaseConfig = {}): Promise<Kysely<
       max: Number(process.env.DB_POOL_MAX || 20),
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
+      ssl: databaseUrl.includes('neon.tech') ? true : undefined,
     });
 
     dbInstance = new Kysely<Database>({
@@ -68,13 +69,13 @@ export async function closeDatabase(): Promise<void> {
     await dbInstance.destroy();
     dbInstance = null;
     pgliteInstance = null;
+    pgPoolInstance = null;
   } else if (pgliteInstance) {
     if (!pgliteInstance.closed) {
       await pgliteInstance.close();
     }
     pgliteInstance = null;
-  }
-  if (pgPoolInstance) {
+  } else if (pgPoolInstance) {
     await pgPoolInstance.end();
     pgPoolInstance = null;
   }

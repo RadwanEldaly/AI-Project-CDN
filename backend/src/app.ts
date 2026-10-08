@@ -74,8 +74,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   // 2. CORS configuration
   await app.register(cors, {
     origin: (origin, cb) => {
-      // In development, allow localhost; in production, validate explicit origin
-      if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      // In development, allow localhost; in production, validate explicit origin or vercel preview deployments
+      if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.endsWith('.vercel.app')) {
         cb(null, true);
         return;
       }

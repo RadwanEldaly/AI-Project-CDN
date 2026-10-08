@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
+dotenv.config({ path: '.env.local' });
 
 import { initDatabase, closeDatabase } from './db/connection.js';
 import { buildApp } from './app.js';
