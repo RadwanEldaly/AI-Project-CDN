@@ -2,10 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "services": {
     "backend": {
-      "root": "backend",
-      "framework": "fastify",
-      "entrypoint": "app.mjs",
-      "buildCommand": "npm --prefix ../shared run build && npm run build"
+      "root": ".",
+      "entrypoint": "Dockerfile.vercel",
+      "runtime": "container"
     },
     "frontend": {
       "root": "frontend",
