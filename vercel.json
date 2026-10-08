@@ -4,7 +4,12 @@
     "backend": {
       "root": "backend",
       "framework": "fastify",
-      "buildCommand": "npm --prefix ../shared run build && tsc"
+      "buildCommand": "npm --prefix ../shared run build && tsc",
+      "functions": {
+        "**": {
+          "includeFiles": "package.json"
+        }
+      }
     },
     "frontend": {
       "root": "frontend",
