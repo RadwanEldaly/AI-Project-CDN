@@ -4,12 +4,8 @@
     "backend": {
       "root": "backend",
       "framework": "fastify",
-      "buildCommand": "npm --prefix ../shared run build && tsc",
-      "functions": {
-        "**": {
-          "includeFiles": "package.json"
-        }
-      }
+      "entrypoint": "app.mjs",
+      "buildCommand": "npm --prefix ../shared run build && npm run build"
     },
     "frontend": {
       "root": "frontend",
