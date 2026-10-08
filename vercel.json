@@ -3,6 +3,8 @@
   "services": {
     "backend": {
       "root": "backend",
+      "framework": "fastify",
+      "entrypoint": "src/app.ts",
       "buildCommand": "npm --prefix ../shared run build && npm run build"
     },
     "frontend": {

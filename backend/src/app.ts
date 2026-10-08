@@ -19,8 +19,6 @@ import { feedRoutes } from './modules/feed/feed.routes.js';
 import { searchRoutes } from './modules/search/search.routes.js';
 import { notificationsRoutes } from './modules/notifications/notifications.routes.js';
 
-const __dirname = process.cwd();
-
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
     logger: {
@@ -230,3 +228,11 @@ export default async function handler(req: any, res: any) {
   const instance = await getOrInitApp();
   instance.server.emit('request', req, res);
 }
+
+// Ensure full compatibility across CommonJS and ESM module loaders in serverless runtimes
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = handler;
+  (module.exports as any).default = handler;
+  (module.exports as any).buildApp = buildApp;
+}
+
