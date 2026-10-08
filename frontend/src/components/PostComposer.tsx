@@ -60,8 +60,14 @@ export const PostComposer: React.FC<PostComposerProps> = ({ onPostCreated, onOpe
 
       const isVideo = mimeType.startsWith('video');
 
-      if (file.size > 50 * 1024 * 1024) {
-        throw new Error('Media file exceeds maximum allowed size (50MB)');
+      // Max size allowed by Vercel Serverless Function payload limit is 4.5MB
+      const MAX_FILE_SIZE = 4.5 * 1024 * 1024;
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error(
+          isVideo
+            ? 'حجم الفيديو يتجاوز 4.5 ميجابايت (الحد الأقصى المسموح). يرجى اختيار فيديو أقصر أو مضغوط.'
+            : 'حجم الصورة يتجاوز 4.5 ميجابايت. يرجى اختيار صورة بحجم أصغر.'
+        );
       }
 
       // 1. Request signed direct upload URL
@@ -85,7 +91,12 @@ export const PostComposer: React.FC<PostComposerProps> = ({ onPostCreated, onOpe
       });
     } catch (err: any) {
       URL.revokeObjectURL(previewUrl);
-      setError(err.message || 'Failed to upload media. Please try again.');
+      const msg = err.message || '';
+      if (msg.includes('413')) {
+        setError('حجم الملف كبير جداً وتجاوز حد السيرفر (أقصى حد 4.5 ميجابايت). يرجى اختيار مقطع فيديو أصغر.');
+      } else {
+        setError(msg || 'فشل رفع الملف. يرجى المحاولة مرة أخرى.');
+      }
     } finally {
       setUploadingMedia(false);
       if (fileInputRef.current) {

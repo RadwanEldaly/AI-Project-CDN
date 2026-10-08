@@ -21,6 +21,7 @@ import { notificationsRoutes } from './modules/notifications/notifications.route
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
+    bodyLimit: 52428800, // 50MB
     logger: {
       level: process.env.LOG_LEVEL || 'info',
       serializers: {

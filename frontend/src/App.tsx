@@ -140,8 +140,9 @@ export const App: React.FC = () => {
         <aside className="sidebar-left">
           <nav>
             <div
-              className={`sidebar-nav-item ${currentView === 'feed' && !selectedTag ? 'active' : ''}`}
+              className={`sidebar-nav-item ${currentView === 'feed' && feedTab === 'explore' && !selectedTag ? 'active' : ''}`}
               onClick={() => {
+                setFeedTab('explore');
                 setSelectedTag(null);
                 setCurrentView('feed');
               }}
@@ -378,6 +379,72 @@ export const App: React.FC = () => {
           </div>
         </aside>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="mobile-bottom-nav">
+        <button
+          className={`mobile-nav-btn ${currentView === 'feed' && feedTab === 'explore' && !selectedTag ? 'active' : ''}`}
+          onClick={() => {
+            setFeedTab('explore');
+            setSelectedTag(null);
+            setCurrentView('feed');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        >
+          <Compass size={20} />
+          <span>Explore</span>
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${currentView === 'feed' && feedTab === 'following' ? 'active' : ''}`}
+          onClick={() => {
+            if (!user) {
+              handleOpenAuth('login');
+              return;
+            }
+            setFeedTab('following');
+            setSelectedTag(null);
+            setCurrentView('feed');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        >
+          <Users size={20} />
+          <span>Following</span>
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${currentView === 'notifications' ? 'active' : ''}`}
+          onClick={() => {
+            if (!user) {
+              handleOpenAuth('login');
+              return;
+            }
+            setCurrentView('notifications');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        >
+          <Bell size={20} />
+          <span>Alerts</span>
+        </button>
+
+        {user ? (
+          <button
+            className={`mobile-nav-btn ${currentView === 'profile' && selectedUsername === user.username ? 'active' : ''}`}
+            onClick={() => handleOpenProfile(user.username)}
+          >
+            <UserIcon size={20} />
+            <span>Profile</span>
+          </button>
+        ) : (
+          <button
+            className="mobile-nav-btn"
+            onClick={() => handleOpenAuth('login')}
+          >
+            <UserIcon size={20} />
+            <span>Sign In</span>
+          </button>
+        )}
+      </nav>
 
       <AuthModal
         isOpen={authModalOpen}

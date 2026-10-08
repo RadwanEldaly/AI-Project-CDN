@@ -114,30 +114,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               {userMenuOpen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '48px',
-                    right: 0,
-                    width: '220px',
-                    background: '#0a0a0a',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-lg)',
-                    boxShadow: '0 20px 50px rgba(0,0,0,0.95)',
-                    padding: '8px',
-                    zIndex: 200,
-                  }}
-                >
-                  <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontWeight: 600, color: 'white' }}>{profile?.displayName || user.username}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-                      @{user.username}
-                    </div>
+                <div className="user-dropdown-menu">
+                  <div className="dropdown-user-header">
+                    <div className="dropdown-user-name">{profile?.displayName || user.username}</div>
+                    <div className="dropdown-user-handle">@{user.username}</div>
                   </div>
 
                   <button
-                    className="sidebar-nav-item"
-                    style={{ width: '100%', marginTop: '6px' }}
+                    className="dropdown-item"
                     onClick={() => {
                       setUserMenuOpen(false);
                       onOpenProfile(user.username);
@@ -148,8 +132,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
 
                   <button
-                    className="sidebar-nav-item"
-                    style={{ width: '100%', color: 'var(--danger)' }}
+                    className="dropdown-item dropdown-item-danger"
                     onClick={() => {
                       setUserMenuOpen(false);
                       logout();
