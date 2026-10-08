@@ -100,15 +100,34 @@ export const mediaRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
       // Read binary buffer from request body
       const buffer = Buffer.isBuffer(request.body)
         ? request.body
+        : typeof request.body === 'string'
+        ? Buffer.from(request.body)
         : Buffer.from(JSON.stringify(request.body));
 
       await storage.saveRawUpload(key, buffer);
+
+      // Persist raw binary in DB so it is immediately available across serverless lambdas
+      try {
+        const db = getDb();
+        const mimeType = (request.headers['content-type'] as string) || 'application/octet-stream';
+        await db
+          .updateTable('post_media')
+          .set({
+            media_data: buffer.toString('base64'),
+            mime_type: mimeType,
+            byte_size: buffer.length,
+          })
+          .where('storage_key', '=', key)
+          .execute();
+      } catch (e) {
+        server.log.error(e, 'Failed to save raw media buffer to DB');
+      }
 
       return reply.status(200).send({ success: true, message: 'Upload received' });
     }
   );
 
-  // 3. POST /confirm (Notify upload completed and trigger processing)
+  // 3. POST /confirm (Notify upload completed and trigger immediate processing)
   server.post(
     '/confirm',
     { preHandler: [requireAuth] },
@@ -127,7 +146,7 @@ export const mediaRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
       const user = request.currentUser!;
       const result = await mediaService.confirmUpload(user.id, parseResult.data.mediaId);
 
-      return reply.status(202).send({
+      return reply.status(200).send({
         success: true,
         data: result,
       });

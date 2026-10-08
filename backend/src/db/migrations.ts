@@ -78,6 +78,8 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
       original_url TEXT NOT NULL,
       optimized_url TEXT,
       thumbnail_url TEXT,
+      media_data TEXT,
+      mime_type VARCHAR(128),
       byte_size INT NOT NULL,
       width INT,
       height INT,
@@ -87,6 +89,8 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `.execute(db);
+  await sql`ALTER TABLE post_media ADD COLUMN IF NOT EXISTS media_data TEXT;`.execute(db);
+  await sql`ALTER TABLE post_media ADD COLUMN IF NOT EXISTS mime_type VARCHAR(128);`.execute(db);
   await sql`CREATE INDEX IF NOT EXISTS idx_post_media_post_id ON post_media(post_id, order_index ASC);`.execute(db);
 
   // 6. Comments Table

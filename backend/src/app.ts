@@ -68,6 +68,27 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
   });
 
+  // Support direct binary uploads for image and video formats
+  app.addContentTypeParser(
+    [
+      'image/png',
+      'image/jpeg',
+      'image/jpg',
+      'image/webp',
+      'image/gif',
+      'image/avif',
+      'image/svg+xml',
+      'video/mp4',
+      'video/webm',
+      'video/quicktime',
+      'application/octet-stream',
+    ],
+    { parseAs: 'buffer' },
+    (_req, body, done) => {
+      done(null, body);
+    }
+  );
+
   // 2. CORS configuration
   await app.register(cors, {
     origin: (origin, cb) => {
@@ -168,7 +189,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(searchRoutes, { prefix: '/api/v1/search' });
   await app.register(notificationsRoutes, { prefix: '/api/v1/notifications' });
 
-  // 9. Static Media CDN Serving
+  // 9. Static & Dynamic Media CDN Serving
   const storageBaseDir =
     process.env.STORAGE_BASE_DIR ||
     (process.env.VERCEL ? path.resolve('/tmp', '.data', 'storage') : path.resolve(process.cwd(), '.data', 'storage'));
@@ -177,10 +198,63 @@ export async function buildApp(): Promise<FastifyInstance> {
     fs.mkdirSync(processedDir, { recursive: true });
   }
 
-  await app.register(fastifyStatic, {
-    root: processedDir,
-    prefix: '/media-cdn/',
-    decorateReply: false,
+  app.get('/media-cdn/*', async (req, reply) => {
+    const rawPath = (req.params as any)['*'] || '';
+    const filePath = path.join(processedDir, rawPath);
+
+    // 1. If file exists in local /tmp or disk cache, stream it
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      const ext = path.extname(filePath).toLowerCase();
+      const mimeMap: Record<string, string> = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+      };
+      const contentType = mimeMap[ext] || 'application/octet-stream';
+      reply.header('Content-Type', contentType);
+      reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+      return reply.send(fs.createReadStream(filePath));
+    }
+
+    // 2. Otherwise load from Neon PostgreSQL persistent storage
+    try {
+      const db = getDb();
+      const media = await db
+        .selectFrom('post_media')
+        .select(['media_data', 'mime_type', 'media_type', 'storage_key'])
+        .where((eb) =>
+          eb.or([
+            eb('optimized_url', 'like', `%${rawPath}%`),
+            eb('thumbnail_url', 'like', `%${rawPath}%`),
+            eb('storage_key', 'like', `%${rawPath}%`),
+          ])
+        )
+        .executeTakeFirst();
+
+      if (media && media.media_data) {
+        const buffer = Buffer.from(media.media_data, 'base64');
+        const contentType = media.mime_type || (media.media_type === 'video' ? 'video/mp4' : 'image/webp');
+
+        // Write to local cache for subsequent fast hits
+        try {
+          const parentDir = path.dirname(filePath);
+          if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, { recursive: true });
+          fs.writeFileSync(filePath, buffer);
+        } catch (_) {}
+
+        reply.header('Content-Type', contentType);
+        reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+        return reply.send(buffer);
+      }
+    } catch (err) {
+      app.log.error(err, 'Failed to retrieve media from database');
+    }
+
+    return reply.status(404).send({ success: false, error: 'Media not found' });
   });
 
   // 10. Static Frontend Serving (SPA fallback)

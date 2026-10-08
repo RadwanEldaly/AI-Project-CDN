@@ -88,18 +88,24 @@ export class MediaService {
       .where('id', '=', mediaId)
       .execute();
 
-    // Enqueue background processing job
-    await this.queue.add('process_media', {
+    // Process media synchronously to guarantee readiness before serverless lambda completes
+    await this.processMediaJob({
       mediaId,
       storageKey: media.storage_key,
       mediaType: media.media_type,
       userId,
     });
 
+    const updated = await this.db
+      .selectFrom('post_media')
+      .select(['status', 'optimized_url'])
+      .where('id', '=', mediaId)
+      .executeTakeFirst();
+
     return {
       mediaId,
-      status: 'processing',
-      message: 'Media queued for background optimization',
+      status: updated?.status || 'ready',
+      message: 'Media verified and ready',
     };
   }
 
@@ -108,13 +114,33 @@ export class MediaService {
    */
   async processMediaJob(job: MediaJobPayload): Promise<void> {
     try {
-      // 1. Validate magic bytes from raw file
-      const rawStream = await this.storage.getRawUploadStream(job.storageKey);
-      const chunks: Buffer[] = [];
-      for await (const piece of rawStream) {
-        chunks.push(typeof piece === 'string' ? Buffer.from(piece) : piece);
+      // 1. Validate magic bytes from raw file on disk OR database
+      let fullBuffer: Buffer | null = null;
+      try {
+        const rawStream = await this.storage.getRawUploadStream(job.storageKey);
+        const chunks: Buffer[] = [];
+        for await (const piece of rawStream) {
+          chunks.push(typeof piece === 'string' ? Buffer.from(piece) : piece);
+        }
+        if (chunks.length > 0) {
+          fullBuffer = Buffer.concat(chunks);
+        }
+      } catch (_) {}
+
+      if (!fullBuffer || fullBuffer.length === 0) {
+        const record = await this.db
+          .selectFrom('post_media')
+          .select(['media_data'])
+          .where('id', '=', job.mediaId)
+          .executeTakeFirst();
+        if (record && record.media_data) {
+          fullBuffer = Buffer.from(record.media_data, 'base64');
+        }
       }
-      const fullBuffer = Buffer.concat(chunks);
+
+      if (!fullBuffer || fullBuffer.length === 0) {
+        throw new Error('Raw media upload payload not found on disk or database');
+      }
 
       const isMagicValid = this.validateMagicBytes(fullBuffer, job.mediaType);
       if (!isMagicValid) {
@@ -123,7 +149,7 @@ export class MediaService {
           .set({ status: 'rejected' })
           .where('id', '=', job.mediaId)
           .execute();
-        await this.storage.deleteObject(job.storageKey);
+        await this.storage.deleteObject(job.storageKey).catch(() => {});
         return;
       }
 
@@ -131,11 +157,11 @@ export class MediaService {
       const processedKey = `optimized/${job.mediaType}s/${job.mediaId}.${job.mediaType === 'video' ? 'mp4' : 'webp'}`;
       const thumbKey = `thumbnails/${job.mediaId}.webp`;
 
-      // In development/test mode, create optimized artifact from verified raw buffer
+      const mimeType = job.mediaType === 'video' ? 'video/mp4' : 'image/webp';
       const optimizedUrl = await this.storage.saveProcessedMedia(
         processedKey,
         fullBuffer,
-        job.mediaType === 'video' ? 'video/mp4' : 'image/webp'
+        mimeType
       );
       const thumbnailUrl = await this.storage.saveProcessedMedia(
         thumbKey,
@@ -143,13 +169,15 @@ export class MediaService {
         'image/webp'
       );
 
-      // 3. Mark media as ready with metadata
+      // 3. Mark media as ready with metadata and persistent base64 media_data in database
       await this.db
         .updateTable('post_media')
         .set({
           status: 'ready',
           optimized_url: optimizedUrl,
           thumbnail_url: thumbnailUrl,
+          media_data: fullBuffer.toString('base64'),
+          mime_type: mimeType,
           width: 1920,
           height: 1080,
           duration_seconds: job.mediaType === 'video' ? 30 : null,
@@ -157,8 +185,8 @@ export class MediaService {
         .where('id', '=', job.mediaId)
         .execute();
 
-      // 4. Remove raw pending upload
-      await this.storage.deleteObject(job.storageKey);
+      // 4. Remove raw pending upload from temp disk
+      await this.storage.deleteObject(job.storageKey).catch(() => {});
     } catch (error) {
       console.error(`[MediaService] Processing failed for ${job.mediaId}:`, error);
       await this.db

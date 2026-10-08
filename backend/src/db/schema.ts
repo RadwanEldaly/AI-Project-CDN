@@ -58,6 +58,8 @@ export interface PostMediaTable {
   original_url: string;
   optimized_url: string | null;
   thumbnail_url: string | null;
+  media_data: string | null;
+  mime_type: string | null;
   byte_size: number;
   width: number | null;
   height: number | null;
