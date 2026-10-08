@@ -27,10 +27,10 @@ export async function initDatabase(config: DatabaseConfig = {}): Promise<Kysely<
     // Production / Remote PostgreSQL via connection pool
     pgPoolInstance = new pg.Pool({
       connectionString: databaseUrl,
-      max: Number(process.env.DB_POOL_MAX || 20),
+      max: Number(process.env.DB_POOL_MAX || 10),
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
-      ssl: databaseUrl.includes('neon.tech') ? true : undefined,
+      connectionTimeoutMillis: 10000,
+      ssl: databaseUrl.includes('neon.tech') ? { rejectUnauthorized: false } : undefined,
     });
 
     dbInstance = new Kysely<Database>({
@@ -40,7 +40,9 @@ export async function initDatabase(config: DatabaseConfig = {}): Promise<Kysely<
     });
   } else {
     // Local development & standalone testing via PGlite WASM
-    const dataDir = config.dataDir || path.resolve(process.cwd(), '.data', 'pglite');
+    const dataDir =
+      config.dataDir ||
+      (process.env.VERCEL ? path.resolve('/tmp', '.data', 'pglite') : path.resolve(process.cwd(), '.data', 'pglite'));
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }

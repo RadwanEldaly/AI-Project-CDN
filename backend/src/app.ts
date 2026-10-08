@@ -169,7 +169,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(notificationsRoutes, { prefix: '/api/v1/notifications' });
 
   // 9. Static Media CDN Serving
-  const storageBaseDir = path.resolve(process.cwd(), '.data', 'storage');
+  const storageBaseDir =
+    process.env.STORAGE_BASE_DIR ||
+    (process.env.VERCEL ? path.resolve('/tmp', '.data', 'storage') : path.resolve(process.cwd(), '.data', 'storage'));
   const processedDir = path.join(storageBaseDir, 'processed');
   if (!fs.existsSync(processedDir)) {
     fs.mkdirSync(processedDir, { recursive: true });

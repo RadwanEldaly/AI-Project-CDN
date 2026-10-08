@@ -23,7 +23,10 @@ export class LocalStorageProvider implements StorageProvider {
   private cdnBaseUrl: string;
 
   constructor(baseDir?: string, cdnBaseUrl?: string) {
-    this.baseDir = baseDir || path.resolve(process.cwd(), '.data', 'storage');
+    this.baseDir =
+      baseDir ||
+      process.env.STORAGE_BASE_DIR ||
+      (process.env.VERCEL ? path.resolve('/tmp', '.data', 'storage') : path.resolve(process.cwd(), '.data', 'storage'));
     this.cdnBaseUrl = cdnBaseUrl || process.env.CDN_BASE_URL || '/media-cdn';
     
     // Ensure base directory tree exists
