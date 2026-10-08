@@ -26,6 +26,21 @@ export const usersRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
     });
   });
 
+  // 1.5 GET /:username/posts
+  server.get('/:username/posts', async (request, reply) => {
+    const { username } = request.params as { username: string };
+    const viewerId = request.currentUser?.id;
+
+    const { PostsService } = await import('../posts/posts.service.js');
+    const postsService = new PostsService(getDb());
+    const posts = await postsService.getPostsByUsername(username, viewerId);
+
+    return reply.status(200).send({
+      success: true,
+      data: posts,
+    });
+  });
+
   // 2. PATCH /me/profile
   server.patch('/me/profile', { preHandler: [requireAuth] }, async (request, reply) => {
     const parseResult = UpdateProfileSchema.safeParse(request.body);

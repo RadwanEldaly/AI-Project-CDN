@@ -157,6 +157,8 @@ export const api = {
   users: {
     getProfile: (username: string) =>
       request<UserProfileResponse>(`/users/${encodeURIComponent(username)}`),
+    getUserPosts: (username: string) =>
+      request<PostItem[]>(`/users/${encodeURIComponent(username)}/posts`),
     updateProfile: (data: Partial<{ displayName: string; bio: string | null; githubUrl: string | null; websiteUrl: string | null; avatarUrl: string | null; coverUrl: string | null }>) =>
       request<UserProfileResponse>('/users/me/profile', {
         method: 'PATCH',

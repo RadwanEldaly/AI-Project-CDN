@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { api, UserProfileResponse, PostItem } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { PostCard } from './PostCard';
-import { UserPlus, UserCheck, Edit3, Globe, Code2, MessageCircle, ArrowLeft, X } from 'lucide-react';
+import { UserPlus, UserCheck, Edit3, Globe, Code2, ArrowLeft, X, Camera } from 'lucide-react';
 
 interface ProfileViewProps {
   username: string;
@@ -24,7 +24,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
   const [editBio, setEditBio] = useState('');
   const [editGithub, setEditGithub] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
+  const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [editCoverUrl, setEditCoverUrl] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const fetchProfile = async () => {
     setLoading(true);
@@ -38,17 +45,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
       setEditBio(data.bio || '');
       setEditGithub(data.githubUrl || '');
       setEditWebsite(data.websiteUrl || '');
+      setEditAvatarUrl(data.avatarUrl || '');
+      setEditCoverUrl(data.coverUrl || '');
 
-      // Load user's recent posts
+      // Load all posts authored by this user directly
       try {
-        const searchRes = await api.search.query(username, 'posts');
-        if (searchRes && Array.isArray(searchRes.results)) {
-          setUserPosts(
-            searchRes.results.filter(
-              (p: any) => p.author?.username?.toLowerCase() === username.toLowerCase()
-            )
-          );
-        }
+        const posts = await api.users.getUserPosts(username);
+        setUserPosts(Array.isArray(posts) ? posts : []);
       } catch {
         setUserPosts([]);
       }
@@ -89,6 +92,45 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
     }
   };
 
+  const handleImageUpload = async (file: File, type: 'avatar' | 'cover') => {
+    if (file.size > 4.5 * 1024 * 1024) {
+      alert('File size exceeds maximum allowed size (4.5MB). Please choose a smaller image.');
+      return;
+    }
+
+    if (type === 'avatar') setUploadingAvatar(true);
+    else setUploadingBanner(true);
+
+    try {
+      const mimeType = file.type || 'image/jpeg';
+      const uploadRes = await api.media.requestUploadUrl({
+        filename: file.name,
+        mimeType,
+        byteSize: file.size,
+        purpose: type === 'avatar' ? 'avatar' : 'cover',
+      });
+
+      await api.media.uploadDirect(uploadRes.uploadUrl, file, mimeType);
+      await api.media.confirm(uploadRes.mediaId);
+
+      const targetUrl = `/api/v1/media/${uploadRes.mediaId}`;
+      if (type === 'avatar') {
+        setEditAvatarUrl(targetUrl);
+        await api.users.updateProfile({ avatarUrl: targetUrl });
+      } else {
+        setEditCoverUrl(targetUrl);
+        await api.users.updateProfile({ coverUrl: targetUrl });
+      }
+
+      await fetchProfile();
+    } catch (err: any) {
+      alert(err.message || `Failed to upload ${type}`);
+    } finally {
+      if (type === 'avatar') setUploadingAvatar(false);
+      else setUploadingBanner(false);
+    }
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingProfile(true);
@@ -98,6 +140,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
         bio: editBio.trim() || null,
         githubUrl: editGithub.trim() || null,
         websiteUrl: editWebsite.trim() || null,
+        avatarUrl: editAvatarUrl.trim() || null,
+        coverUrl: editCoverUrl.trim() || null,
       });
       setEditModalOpen(false);
       await fetchProfile();
@@ -118,8 +162,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-dim)' }}>
-        <span className="spinner" style={{ width: '32px', height: '32px' }} />
-        <p style={{ marginTop: '12px' }}>Loading developer profile...</p>
+        <span className="spinner" style={{ width: '28px', height: '28px' }} />
+        <p style={{ marginTop: '12px', fontSize: '0.9rem' }}>Loading developer profile...</p>
       </div>
     );
   }
@@ -128,8 +172,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
     return (
       <div style={{ textAlign: 'center', padding: '60px 0' }}>
         <p style={{ color: 'var(--danger)', marginBottom: '16px' }}>Developer @{username} not found.</p>
-        <button className="btn btn-secondary" onClick={onBack}>
-          <ArrowLeft size={16} /> Back to Feed
+        <button className="btn btn-secondary btn-sm" onClick={onBack}>
+          <ArrowLeft size={14} /> Back to Feed
         </button>
       </div>
     );
@@ -143,52 +187,116 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
 
   return (
     <div>
-      <button
-        className="btn btn-ghost"
-        style={{ marginBottom: '16px', paddingLeft: 0 }}
-        onClick={onBack}
-      >
-        <ArrowLeft size={16} /> Back to Feed
-      </button>
+      {/* Hidden file inputs for direct image upload */}
+      <input
+        type="file"
+        ref={avatarInputRef}
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleImageUpload(file, 'avatar');
+        }}
+      />
+      <input
+        type="file"
+        ref={bannerInputRef}
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleImageUpload(file, 'cover');
+        }}
+      />
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+        <button
+          className="btn btn-ghost btn-sm"
+          style={{ paddingLeft: 0 }}
+          onClick={onBack}
+        >
+          <ArrowLeft size={15} /> Back to Feed
+        </button>
+      </div>
 
       <div className="profile-card">
-        <div className="profile-banner" />
+        {/* Profile Banner */}
+        <div
+          className="profile-banner"
+          style={
+            profileData.coverUrl
+              ? {
+                  backgroundImage: `url(${profileData.coverUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }
+              : undefined
+          }
+        >
+          {isOwnProfile && (
+            <button
+              type="button"
+              className="banner-upload-trigger"
+              onClick={() => bannerInputRef.current?.click()}
+              disabled={uploadingBanner}
+              title="Change Banner Image"
+            >
+              <Camera size={14} />
+              <span>{uploadingBanner ? 'Uploading...' : 'Edit Banner'}</span>
+            </button>
+          )}
+        </div>
+
         <div className="profile-body">
           <div className="profile-avatar-row">
-            {profileData.avatarUrl ? (
-              <img
-                src={profileData.avatarUrl}
-                alt={profileData.username}
-                className="avatar avatar-lg"
-              />
-            ) : (
-              <div className="avatar avatar-lg">
-                {profileData.username.slice(0, 2).toUpperCase()}
-              </div>
-            )}
+            <div className="profile-avatar-wrapper">
+              {profileData.avatarUrl ? (
+                <img
+                  src={profileData.avatarUrl}
+                  alt={profileData.username}
+                  className="avatar avatar-lg"
+                />
+              ) : (
+                <div className="avatar avatar-lg">
+                  {profileData.username.slice(0, 2).toUpperCase()}
+                </div>
+              )}
+
+              {isOwnProfile && (
+                <button
+                  type="button"
+                  className="avatar-upload-trigger"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  title="Change Avatar Photo"
+                >
+                  <Camera size={13} />
+                </button>
+              )}
+            </div>
 
             <div>
               {isOwnProfile ? (
                 <button
-                  className="btn btn-secondary"
+                  className="btn btn-secondary btn-sm"
                   onClick={() => setEditModalOpen(true)}
                   id="edit-profile-btn"
                 >
-                  <Edit3 size={15} /> Edit Profile
+                  <Edit3 size={14} /> Edit Profile
                 </button>
               ) : (
                 <button
-                  className={`btn ${isFollowing ? 'btn-secondary' : 'btn-primary'}`}
+                  className={`btn ${isFollowing ? 'btn-secondary' : 'btn-primary'} btn-sm`}
                   onClick={handleFollowToggle}
                   id="follow-user-btn"
                 >
                   {isFollowing ? (
                     <>
-                      <UserCheck size={16} /> Following
+                      <UserCheck size={14} /> Following
                     </>
                   ) : (
                     <>
-                      <UserPlus size={16} /> Follow
+                      <UserPlus size={14} /> Follow
                     </>
                   )}
                 </button>
@@ -196,20 +304,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
             </div>
           </div>
 
-          <h2 style={{ fontSize: '1.45rem', marginBottom: '2px' }}>
+          <h2 style={{ fontSize: '1.35rem', marginBottom: '2px', color: '#ffffff' }}>
             {profileData.displayName || profileData.username}
           </h2>
-          <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: '12px' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', fontSize: '0.85rem', marginBottom: '12px' }}>
             @{profileData.username}
           </div>
 
           {profileData.bio && (
-            <p style={{ color: '#cbd5e1', marginBottom: '16px', maxWidth: '640px' }}>
+            <p style={{ color: '#cbd5e1', marginBottom: '14px', maxWidth: '640px', fontSize: '0.92rem' }}>
               {profileData.bio}
             </p>
           )}
 
-          <div style={{ display: 'flex', gap: '16px', color: 'var(--text-dim)', fontSize: '0.88rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '16px', color: 'var(--text-dim)', fontSize: '0.84rem', flexWrap: 'wrap' }}>
             {profileData.githubUrl && (
               <a
                 href={profileData.githubUrl}
@@ -217,17 +325,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
                 rel="noreferrer"
                 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <Code2 size={15} /> {profileData.githubUrl.replace(/^https?:\/\/(www\.)?github\.com\//, '')}
-              </a>
-            )}
-            {profileData.twitterUrl && (
-              <a
-                href={profileData.twitterUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <MessageCircle size={15} /> Twitter
+                <Code2 size={14} /> {profileData.githubUrl.replace(/^https?:\/\/(www\.)?github\.com\//, '')}
               </a>
             )}
             {profileData.websiteUrl && (
@@ -237,14 +335,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
                 rel="noreferrer"
                 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <Globe size={15} /> Website
+                <Globe size={14} /> {profileData.websiteUrl.replace(/^https?:\/\//, '')}
               </a>
             )}
           </div>
 
           <div className="profile-stats-row">
             <div className="stat-item">
-              <span className="stat-value">{profileData.postsCount || 0}</span>
+              <span className="stat-value">{userPosts.length}</span>
               <span className="stat-label">Posts</span>
             </div>
             <div className="stat-item">
@@ -259,11 +357,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
         </div>
       </div>
 
-      <h3 style={{ fontSize: '1.15rem', marginBottom: '16px' }}>Posts by @{username}</h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <h3 style={{ fontSize: '1.1rem', color: '#ffffff' }}>Posts by @{username}</h3>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{userPosts.length} published</span>
+      </div>
 
       {userPosts.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '36px', color: 'var(--text-dim)', background: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)' }}>
-          No public technical posts published yet.
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', background: '#0a0a0a', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)' }}>
+          No technical discussions published by @{username} yet.
         </div>
       ) : (
         userPosts.map((post) => (
@@ -282,12 +383,31 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
         <div className="modal-overlay" onClick={() => setEditModalOpen(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setEditModalOpen(false)}>
-              <X size={20} />
+              <X size={18} />
             </button>
             <h2 className="modal-title">Edit Developer Profile</h2>
-            <p className="modal-subtitle">Update your bio, name, and developer links</p>
+            <p className="modal-subtitle">Update your profile avatar, banner, bio, and links</p>
 
-            <form onSubmit={handleSaveProfile} style={{ marginTop: '20px' }}>
+            <form onSubmit={handleSaveProfile} style={{ marginTop: '18px' }}>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '14px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ flex: 1 }}
+                  onClick={() => avatarInputRef.current?.click()}
+                >
+                  <Camera size={14} /> Upload Avatar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ flex: 1 }}
+                  onClick={() => bannerInputRef.current?.click()}
+                >
+                  <Camera size={14} /> Upload Banner
+                </button>
+              </div>
+
               <div className="form-group">
                 <label className="form-label">Display Name</label>
                 <input
@@ -295,7 +415,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
                   className="form-input"
                   value={editDisplayName}
                   onChange={(e) => setEditDisplayName(e.target.value)}
-                  placeholder="e.g. Linus Torvalds"
+                  placeholder="e.g. Radwan Eldaly"
                 />
               </div>
 
@@ -311,18 +431,40 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
               </div>
 
               <div className="form-group">
-                <label className="form-label">GitHub URL</label>
+                <label className="form-label">Avatar Image URL (or upload above)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editAvatarUrl}
+                  onChange={(e) => setEditAvatarUrl(e.target.value)}
+                  placeholder="https://... or /api/v1/media/..."
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Banner Image URL (or upload above)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editCoverUrl}
+                  onChange={(e) => setEditCoverUrl(e.target.value)}
+                  placeholder="https://... or /api/v1/media/..."
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">GitHub Profile</label>
                 <input
                   type="url"
                   className="form-input"
                   value={editGithub}
                   onChange={(e) => setEditGithub(e.target.value)}
-                  placeholder="https://github.com/your-handle"
+                  placeholder="https://github.com/your-username"
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Portfolio / Website URL</label>
+                <label className="form-label">Website / Portfolio</label>
                 <input
                   type="url"
                   className="form-input"
@@ -335,7 +477,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
               <button
                 type="submit"
                 className="btn btn-primary"
-                style={{ width: '100%', padding: '12px', marginTop: '10px' }}
+                style={{ width: '100%', padding: '10px', marginTop: '10px' }}
                 disabled={savingProfile}
               >
                 {savingProfile ? <span className="spinner" /> : 'Save Profile Changes'}
@@ -347,3 +489,4 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
     </div>
   );
 };
+

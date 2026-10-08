@@ -283,4 +283,88 @@ export class PostsService {
         .execute();
     });
   }
+
+  async getPostsByUsername(username: string, viewerId?: string): Promise<Post[]> {
+    const profile = await this.db
+      .selectFrom('profiles')
+      .select(['user_id', 'username', 'display_name', 'avatar_url'])
+      .where('username', '=', username.toLowerCase())
+      .executeTakeFirst();
+
+    if (!profile) return [];
+
+    const postRecords = await this.db
+      .selectFrom('posts')
+      .selectAll()
+      .where('author_id', '=', profile.user_id)
+      .where('deleted_at', 'is', null)
+      .orderBy('created_at', 'desc')
+      .limit(50)
+      .execute();
+
+    if (postRecords.length === 0) return [];
+
+    const postIds = postRecords.map((p) => p.id);
+
+    const allMedia = await this.db
+      .selectFrom('post_media')
+      .selectAll()
+      .where('post_id', 'in', postIds)
+      .orderBy('order_index', 'asc')
+      .execute();
+
+    const allTags = await this.db
+      .selectFrom('post_tags')
+      .innerJoin('tags', 'post_tags.tag_id', 'tags.id')
+      .select(['post_tags.post_id', 'tags.name'])
+      .where('post_tags.post_id', 'in', postIds)
+      .execute();
+
+    let likedPostIds = new Set<string>();
+    if (viewerId) {
+      const likes = await this.db
+        .selectFrom('likes')
+        .select('post_id')
+        .where('user_id', '=', viewerId)
+        .where('post_id', 'in', postIds)
+        .execute();
+      likedPostIds = new Set(likes.map((l) => l.post_id).filter((id): id is string => Boolean(id)));
+    }
+
+    return postRecords.map((p) => ({
+      id: p.id,
+      authorId: p.author_id,
+      author: {
+        id: profile.user_id,
+        username: profile.username,
+        displayName: profile.display_name,
+        avatarUrl: profile.avatar_url,
+      },
+      title: p.title,
+      content: p.content,
+      status: p.status,
+      likesCount: p.likes_count,
+      commentsCount: p.comments_count,
+      tags: allTags.filter((t) => t.post_id === p.id).map((t) => t.name),
+      media: allMedia
+        .filter((m) => m.post_id === p.id)
+        .map((m) => ({
+          id: m.id,
+          postId: m.post_id,
+          mediaType: m.media_type,
+          originalUrl: m.original_url,
+          optimizedUrl: m.optimized_url,
+          thumbnailUrl: m.thumbnail_url,
+          byteSize: m.byte_size,
+          width: m.width,
+          height: m.height,
+          durationSeconds: m.duration_seconds,
+          orderIndex: m.order_index,
+          createdAt: m.created_at,
+        })),
+      isLiked: likedPostIds.has(p.id),
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+    }));
+  }
 }
