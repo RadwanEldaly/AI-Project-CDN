@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://postgres:devspacepassword@db:5432/devspace
+      - STORAGE_SIGNING_SECRET=prod-storage-secret-key-32-chars
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - devspace_storage:/app/.data/storage
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: devspacepassword
+      POSTGRES_DB: devspace
+    ports:
+      - "5432:5432"
+    volumes:
+      - devspace_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d devspace"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  devspace_storage:
+  devspace_pgdata:
