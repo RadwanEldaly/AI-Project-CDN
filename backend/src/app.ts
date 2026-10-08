@@ -229,10 +229,4 @@ export default async function handler(req: any, res: any) {
   instance.server.emit('request', req, res);
 }
 
-// Ensure full compatibility across CommonJS and ESM module loaders in serverless runtimes
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = handler;
-  (module.exports as any).default = handler;
-  (module.exports as any).buildApp = buildApp;
-}
 
