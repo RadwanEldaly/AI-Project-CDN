@@ -19,13 +19,7 @@ import { feedRoutes } from './modules/feed/feed.routes.js';
 import { searchRoutes } from './modules/search/search.routes.js';
 import { notificationsRoutes } from './modules/notifications/notifications.routes.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Explicitly trace package.json so Vercel Serverless Function runtime bundles it with type: module
-try {
-  fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8');
-} catch {}
+const __dirname = process.cwd();
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
