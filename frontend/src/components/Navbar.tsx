@@ -72,7 +72,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="brand-icon">
             <Terminal size={18} />
           </div>
-          <span className="brand-title">DevSpace</span>
+          <span className="brand-title">ByteMesh</span>
         </div>
 
         {/* Center Search Trigger Button */}

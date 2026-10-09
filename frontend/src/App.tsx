@@ -368,7 +368,7 @@ export const App: React.FC = () => {
           <div className="widget-card">
             <div className="widget-header">
               <FileCode size={16} />
-              <span>DevSpace Standards</span>
+              <span>ByteMesh Standards</span>
             </div>
             <ul style={{ paddingLeft: '18px', color: 'var(--text-muted)', fontSize: '0.85rem', display: 'grid', gap: '8px' }}>
               <li>Share production insights & code snippets</li>

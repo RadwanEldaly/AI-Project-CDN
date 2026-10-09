@@ -98,7 +98,7 @@ export async function buildApp(): Promise<FastifyInstance> {
         cb(null, true);
         return;
       }
-      const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://devspace.app').split(',');
+      const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://bytemesh.dev,https://bytemesh.app,https://devspace.app').split(',');
       if (allowedOrigins.includes(origin)) {
         cb(null, true);
       } else {

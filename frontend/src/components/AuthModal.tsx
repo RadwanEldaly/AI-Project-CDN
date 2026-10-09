@@ -62,10 +62,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
             <div className="brand-icon" style={{ width: '26px', height: '26px' }}>
               <Terminal size={15} />
             </div>
-            <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#ffffff', letterSpacing: '0.04em' }}>DEVSPACE</span>
+            <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#ffffff', letterSpacing: '0.04em' }}>BYTEMESH</span>
           </div>
           <h2 className="modal-title">
-            {mode === 'login' ? 'Sign in to DevSpace' : 'Create developer account'}
+            {mode === 'login' ? 'Sign in to ByteMesh' : 'Create developer account'}
           </h2>
           <p className="modal-subtitle">
             {mode === 'login'

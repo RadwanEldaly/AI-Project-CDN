@@ -122,7 +122,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
           {loading ? (
             <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-dim)' }}>
               <span className="spinner" style={{ width: '22px', height: '22px' }} />
-              <p style={{ marginTop: '8px', fontSize: '0.85rem' }}>Searching DevSpace index...</p>
+              <p style={{ marginTop: '8px', fontSize: '0.85rem' }}>Searching ByteMesh index...</p>
             </div>
           ) : !query.trim() ? (
             <div className="search-suggestions">
