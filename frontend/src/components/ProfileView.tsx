@@ -11,13 +11,15 @@ interface ProfileViewProps {
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOpenAuth }) => {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, refreshUser } = useAuth();
   const [profileData, setProfileData] = useState<UserProfileResponse | null>(null);
   const [userPosts, setUserPosts] = useState<PostItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+  const [bannerLoadError, setBannerLoadError] = useState(false);
 
   // Edit fields
   const [editDisplayName, setEditDisplayName] = useState('');
@@ -47,6 +49,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
       setEditWebsite(data.websiteUrl || '');
       setEditAvatarUrl(data.avatarUrl || '');
       setEditCoverUrl(data.coverUrl || '');
+      setAvatarLoadError(false);
+      setBannerLoadError(false);
 
       // Load all posts authored by this user directly
       try {
@@ -115,13 +119,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
 
       const targetUrl = `/api/v1/media/${uploadRes.mediaId}`;
       if (type === 'avatar') {
+        setAvatarLoadError(false);
         setEditAvatarUrl(targetUrl);
         await api.users.updateProfile({ avatarUrl: targetUrl });
       } else {
+        setBannerLoadError(false);
         setEditCoverUrl(targetUrl);
         await api.users.updateProfile({ coverUrl: targetUrl });
       }
 
+      await refreshUser();
       await fetchProfile();
     } catch (err: any) {
       alert(err.message || `Failed to upload ${type}`);
@@ -144,6 +151,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
         coverUrl: editCoverUrl.trim() || null,
       });
       setEditModalOpen(false);
+      await refreshUser();
       await fetchProfile();
     } catch (err: any) {
       alert(err.message || 'Failed to update profile');
@@ -224,7 +232,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
         <div
           className="profile-banner"
           style={
-            profileData.coverUrl
+            profileData.coverUrl && !bannerLoadError
               ? {
                   backgroundImage: `url(${profileData.coverUrl})`,
                   backgroundSize: 'cover',
@@ -250,11 +258,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ username, onBack, onOp
         <div className="profile-body">
           <div className="profile-avatar-row">
             <div className="profile-avatar-wrapper">
-              {profileData.avatarUrl ? (
+              {profileData.avatarUrl && !avatarLoadError ? (
                 <img
                   src={profileData.avatarUrl}
                   alt={profileData.username}
                   className="avatar avatar-lg"
+                  onError={() => setAvatarLoadError(true)}
                 />
               ) : (
                 <div className="avatar avatar-lg">

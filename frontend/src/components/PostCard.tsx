@@ -29,6 +29,7 @@ export const PostCard: React.FC<PostCardProps> = ({
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
 
   const isAuthor = Boolean(
     user && (
@@ -138,10 +139,15 @@ export const PostCard: React.FC<PostCardProps> = ({
     <article className="post-card" id={`post-${post.id}`}>
       <header className="post-header">
         <div className="author-meta" onClick={() => onOpenAuthor(post.author.username)}>
-          {post.author.avatarUrl ? (
-            <img src={post.author.avatarUrl} alt={post.author.username} className="avatar" />
+          {post.author.avatarUrl && !avatarError ? (
+            <img
+              src={post.author.avatarUrl}
+              alt={post.author.username}
+              className="avatar"
+              onError={() => setAvatarError(true)}
+            />
           ) : (
-            <div className="avatar">{post.author.username.slice(0, 2).toUpperCase()}</div>
+            <div className="avatar">{(post.author?.username || 'U').slice(0, 2).toUpperCase()}</div>
           )}
           <div className="author-info">
             <span className="author-name">

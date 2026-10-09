@@ -27,6 +27,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [navAvatarError, setNavAvatarError] = useState(false);
+
+  useEffect(() => {
+    setNavAvatarError(false);
+  }, [profile?.avatarUrl]);
 
   useEffect(() => {
     if (!user) {
@@ -165,11 +170,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                     setCreateMenuOpen(false);
                   }}
                 >
-                  {profile?.avatarUrl ? (
+                  {profile?.avatarUrl && !navAvatarError ? (
                     <img
                       src={profile.avatarUrl}
                       alt={user.username}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={() => setNavAvatarError(true)}
                     />
                   ) : (
                     <div className="avatar avatar-sm">{user.username.slice(0, 2).toUpperCase()}</div>

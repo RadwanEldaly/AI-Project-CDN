@@ -135,4 +135,33 @@ export const mediaRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
       });
     }
   );
+
+  // 4. GET /:id (Serve media image or video binary by ID)
+  server.get('/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const db = getDb();
+    const media = await db
+      .selectFrom('post_media')
+      .selectAll()
+      .where('id', '=', id)
+      .executeTakeFirst();
+
+    if (!media) {
+      return reply.status(404).send({ success: false, error: 'Media not found' });
+    }
+
+    if (media.media_data) {
+      const buffer = Buffer.from(media.media_data, 'base64');
+      const contentType = media.mime_type || (media.media_type === 'video' ? 'video/mp4' : 'image/webp');
+      reply.header('Content-Type', contentType);
+      reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+      return reply.send(buffer);
+    }
+
+    if (media.optimized_url && media.optimized_url !== `/media/pending/${id}`) {
+      return reply.redirect(media.optimized_url);
+    }
+
+    return reply.status(404).send({ success: false, error: 'Media binary not available' });
+  });
 };
